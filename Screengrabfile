@@ -1,0 +1,15 @@
+# remove the leading '#' to uncomment lines
+
+app_package_name 'org.mozilla.focus.debug'
+use_tests_in_packages ['org.mozilla.focus.activity']
+
+app_apk_path 'app/build/outputs/apk/app-focus-webkit-debug.apk'
+tests_apk_path 'app/build/outputs/apk/app-focus-webkit-debug-androidTest.apk'
+
+locales ['ur']
+
+# clear all previously generated screenshots in your local output directory before creating new ones
+clear_previous_screenshots true
+
+# For more information about all available options run
+#   fastlane screengrab --help
