@@ -36,9 +36,7 @@ import java.net.URL;
 
         if (UrlUtils.isPermittedResourceProtocol(resource.getScheme()) &&
                 UrlUtils.isSupportedProtocol(site.getScheme())) {
-            final FocusString revSitehost = FocusString.create(site.getHost()).reverse();
-
-            return isWhiteListed(revSitehost, resource.getHost(), rootNode);
+            return isWhiteListed(site.getHost(), resource.getHost(), rootNode);
         } else {
             // This might be some imaginary/custom protocol: theguardian.com loads
             // things like "nielsenwebid://nuid/999" and/or sets an iFrame URL to that:
@@ -46,23 +44,39 @@ import java.net.URL;
         }
     }
 
-    private boolean isWhiteListed(final FocusString site, final String resource, final Trie revHostTrie) {
-        final WhiteListTrie next = (WhiteListTrie) revHostTrie.children.get(site.charAt(0));
+    private boolean isWhiteListed(final String siteHost, final String resourceHost, final Trie revHostTrie) {
+        // We could use Trie.findNode(), however it's possible to have subdomain specific whitelists - hence we need
+        // to manually search for every matching node (in effect we reimplement findNode, but continue past the
+        // first matching Node whereas findNode() simply returns the first matching Node).
+        // TODO: we could reimplement findNode() to return a lazy iterator (and add appropriate tests : ) )
 
-        if (next == null) {
-            // No matches
-            return false;
+        int offset = 0;
+        WhiteListTrie node = (WhiteListTrie) revHostTrie;
+
+        while (offset < siteHost.length()) {
+            if (node == null) {
+                return false;
+            }
+
+            final int currentCharPosition = siteHost.length() - 1 - offset;
+            final char currentChar = siteHost.charAt(currentCharPosition);
+
+            // Match achieved - and we're at a domain boundary. This is important, because
+            // we don't want to return on partial domain matches. (E.g. if the trie node is bar.com,
+            // and the search string is foo-bar.com, we shouldn't match. foo.bar.com should however match.)
+            if (node.terminator &&
+                    node.whitelist != null &&
+                    currentChar == '.' &&
+                    node.whitelist.findNode(resourceHost) != null) {
+                return true;
+            }
+
+            node = (WhiteListTrie) node.children.get(currentChar);
+            offset++;
         }
 
-        if (next.whitelist != null &&
-                next.whitelist.findNode(resource) != null) {
-            return true;
-        }
-
-        if (site.length() == 1) {
-            return false;
-        }
-
-        return isWhiteListed(site.substring(1), resource, next);
+        return node.terminator &&
+                node.whitelist != null &&
+                node.whitelist.findNode(resourceHost) != null;
     }
 }
