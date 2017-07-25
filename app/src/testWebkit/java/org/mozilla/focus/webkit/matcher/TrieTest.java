@@ -15,38 +15,38 @@ public class TrieTest {
     public void findNode() throws Exception {
         final Trie trie = Trie.createRootNode();
 
-        assertNull(trie.findNode(FocusString.create("hello")));
+        assertNull(trie.findNode("hello"));
 
-        final Trie putNode = trie.put(FocusString.create("hello"));
-        final Trie foundNode = trie.findNode(FocusString.create("hello"));
+        final Trie putNode = trie.put(FocusString.create("hello").reverse());
+        final Trie foundNode = trie.findNode("hello");
 
         assertNotNull(putNode);
         assertNotNull(foundNode);
         assertEquals(putNode, foundNode);
 
         // Substring matching: doesn't happen (except for subdomains, we test those later)
-        assertNull(trie.findNode(FocusString.create("hell")));
-        assertNull(trie.findNode(FocusString.create("hellop")));
+        assertNull(trie.findNode("hell"));
+        assertNull(trie.findNode("hellop"));
 
-        trie.put(FocusString.create("hellohello"));
+        trie.put(FocusString.create("hellohello").reverse());
 
         // Ensure both old and new overlapping strings can still be found
-        assertNotNull(trie.findNode(FocusString.create("hello")));
-        assertNotNull(trie.findNode(FocusString.create("hellohello")));
+        assertNotNull(trie.findNode("hello"));
+        assertNotNull(trie.findNode("hellohello"));
 
         // These still don't match:
-        assertNull(trie.findNode(FocusString.create("hell")));
-        assertNull(trie.findNode(FocusString.create("hellop")));
+        assertNull(trie.findNode("hell"));
+        assertNull(trie.findNode("hellop"));
 
         // Domain specific / partial domain tests:
         trie.put(FocusString.create("foo.com").reverse());
 
         // Domain and subdomain can be found
-        assertNotNull(trie.findNode(FocusString.create("foo.com").reverse()));
-        assertNotNull(trie.findNode(FocusString.create("bar.foo.com").reverse()));
+        assertNotNull(trie.findNode("foo.com"));
+        assertNotNull(trie.findNode("bar.foo.com"));
         // But other domains with some overlap don't match
-        assertNull(trie.findNode(FocusString.create("bar-foo.com").reverse()));
-        assertNull(trie.findNode(FocusString.create("oo.com").reverse()));
+        assertNull(trie.findNode("bar-foo.com"));
+        assertNull(trie.findNode("oo.com"));
     }
 
     @Test
@@ -56,20 +56,20 @@ public class TrieTest {
         {
             final Trie whitelist = Trie.createRootNode();
 
-            whitelist.put(FocusString.create("abc"));
+            whitelist.put(FocusString.create("abc").reverse());
 
             trie = WhiteListTrie.createRootNode();
-            trie.putWhiteList(FocusString.create("def"), whitelist);
+            trie.putWhiteList(FocusString.create("def").reverse(), whitelist);
         }
 
-        assertNull(trie.findNode(FocusString.create("abc")));
+        assertNull(trie.findNode("abc"));
 
         // In practice EntityList uses it's own search in order to cover all possible matching notes
         // (e.g. in case we have separate whitelists for mozilla.org and foo.mozilla.org), however
         // we don't need to test that here yet.
-        final WhiteListTrie foundWhitelist = (WhiteListTrie) trie.findNode(FocusString.create("def"));
+        final WhiteListTrie foundWhitelist = (WhiteListTrie) trie.findNode("def");
         assertNotNull(foundWhitelist);
 
-        assertNotNull(foundWhitelist.whitelist.findNode(FocusString.create("abc")));
+        assertNotNull(foundWhitelist.whitelist.findNode("abc"));
     }
 }
