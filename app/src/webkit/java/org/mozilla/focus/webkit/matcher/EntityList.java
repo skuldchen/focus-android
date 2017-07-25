@@ -37,9 +37,8 @@ import java.net.URL;
         if (UrlUtils.isPermittedResourceProtocol(resource.getScheme()) &&
                 UrlUtils.isSupportedProtocol(site.getScheme())) {
             final FocusString revSitehost = FocusString.create(site.getHost()).reverse();
-            final FocusString revResourcehost = FocusString.create(resource.getHost()).reverse();
 
-            return isWhiteListed(revSitehost, revResourcehost, rootNode);
+            return isWhiteListed(revSitehost, resource.getHost(), rootNode);
         } else {
             // This might be some imaginary/custom protocol: theguardian.com loads
             // things like "nielsenwebid://nuid/999" and/or sets an iFrame URL to that:
@@ -47,7 +46,7 @@ import java.net.URL;
         }
     }
 
-    private boolean isWhiteListed(final FocusString site, final FocusString resource, final Trie revHostTrie) {
+    private boolean isWhiteListed(final FocusString site, final String resource, final Trie revHostTrie) {
         final WhiteListTrie next = (WhiteListTrie) revHostTrie.children.get(site.charAt(0));
 
         if (next == null) {
