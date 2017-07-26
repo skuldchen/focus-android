@@ -23,8 +23,8 @@ import java.net.URL;
         rootNode = WhiteListTrie.createRootNode();
     }
 
-    public void putWhiteList(final FocusString revhost, final Trie whitelist) {
-        rootNode.putWhiteList(revhost, whitelist);
+    public void putWhiteList(final String host, final Trie whitelist) {
+        rootNode.putWhiteList(host, whitelist);
     }
 
     public boolean isWhiteListed(final Uri site, final Uri resource) {

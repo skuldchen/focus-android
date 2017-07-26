@@ -75,7 +75,7 @@ public class UrlMatcherTest {
                 final String domain = "category" + i + ".com";
 
                 final Trie trie = Trie.createRootNode();
-                trie.put(FocusString.create(domain).reverse());
+                trie.put(domain);
 
                 final String categoryName = "category" + i;
                 categories.put(categoryName, trie);

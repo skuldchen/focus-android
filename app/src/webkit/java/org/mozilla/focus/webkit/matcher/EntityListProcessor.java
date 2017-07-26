@@ -59,19 +59,16 @@ import java.util.ArrayList;
                 reader.beginArray();
 
                 while (reader.hasNext()) {
-                    final FocusString revhost = FocusString.create(reader.nextString()).reverse();
-
-                    whitelist.put(revhost);
+                    final String host = reader.nextString();
+                    whitelist.put(host);
                 }
 
                 reader.endArray();
             }
         }
 
-        for (final String property : propertyList) {
-            final FocusString revhost = FocusString.create(property).reverse();
-
-            entityMap.putWhiteList(revhost, whitelist);
+        for (final String whiteListedHost : propertyList) {
+            entityMap.putWhiteList(whiteListedHost, whitelist);
         }
 
         reader.endObject();

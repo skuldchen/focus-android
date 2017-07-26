@@ -33,13 +33,13 @@ public class EntityListTest {
         // Thus mozilla.org can only use foo.com, but foo.mozilla.org can use foo.com and bar.com
 
         final Trie fooComTrie = Trie.createRootNode();
-        fooComTrie.put(FocusString.create(fooCom).reverse());
+        fooComTrie.put(fooCom);
 
         final Trie barComTrie = Trie.createRootNode();
-        barComTrie.put(FocusString.create(barCom).reverse());
+        barComTrie.put(barCom);
 
-        entityList.putWhiteList(FocusString.create(mozillaOrg).reverse(), fooComTrie);
-        entityList.putWhiteList(FocusString.create(fooMozillaOrg).reverse(), barComTrie);
+        entityList.putWhiteList(mozillaOrg, fooComTrie);
+        entityList.putWhiteList(fooMozillaOrg, barComTrie);
 
         assertTrue(entityList.isWhiteListed(Uri.parse("http://" + mozillaOrg), Uri.parse("http://" + fooCom)));
         assertFalse(entityList.isWhiteListed(Uri.parse("http://" + mozillaOrg), Uri.parse("http://" + barCom)));

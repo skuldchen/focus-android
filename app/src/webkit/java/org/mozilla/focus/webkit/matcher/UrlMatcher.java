@@ -173,7 +173,7 @@ public class UrlMatcher implements  SharedPreferences.OnSharedPreferenceChangeLi
         }
 
         for (final String pattern : patterns) {
-            defaultCategory.put(FocusString.create(pattern).reverse());
+            defaultCategory.put(pattern);
         }
 
         enabledCategories.add("default");

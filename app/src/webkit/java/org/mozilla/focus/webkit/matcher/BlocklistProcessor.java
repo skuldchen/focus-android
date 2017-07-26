@@ -104,7 +104,7 @@ public class BlocklistProcessor {
 
         @Override
         public void put(final String url, final String siteOwner) {
-            trie.put(FocusString.create(url).reverse());
+            trie.put(url);
         }
     }
 
@@ -152,7 +152,7 @@ public class BlocklistProcessor {
         }
 
         for (final String url : socialOverrides) {
-            socialTrie.put(FocusString.create(url).reverse());
+            socialTrie.put(url);
         }
 
         reader.endObject();

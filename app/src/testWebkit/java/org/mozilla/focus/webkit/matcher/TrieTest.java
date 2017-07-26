@@ -17,7 +17,7 @@ public class TrieTest {
 
         assertNull(trie.findNode("hello"));
 
-        final Trie putNode = trie.put(FocusString.create("hello").reverse());
+        final Trie putNode = trie.put("hello");
         final Trie foundNode = trie.findNode("hello");
 
         assertNotNull(putNode);
@@ -28,7 +28,7 @@ public class TrieTest {
         assertNull(trie.findNode("hell"));
         assertNull(trie.findNode("hellop"));
 
-        trie.put(FocusString.create("hellohello").reverse());
+        trie.put("hellohello");
 
         // Ensure both old and new overlapping strings can still be found
         assertNotNull(trie.findNode("hello"));
@@ -39,7 +39,7 @@ public class TrieTest {
         assertNull(trie.findNode("hellop"));
 
         // Domain specific / partial domain tests:
-        trie.put(FocusString.create("foo.com").reverse());
+        trie.put("foo.com");
 
         // Domain and subdomain can be found
         assertNotNull(trie.findNode("foo.com"));
@@ -56,10 +56,10 @@ public class TrieTest {
         {
             final Trie whitelist = Trie.createRootNode();
 
-            whitelist.put(FocusString.create("abc").reverse());
+            whitelist.put("abc");
 
             trie = WhiteListTrie.createRootNode();
-            trie.putWhiteList(FocusString.create("def").reverse(), whitelist);
+            trie.putWhiteList("def", whitelist);
         }
 
         assertNull(trie.findNode("abc"));

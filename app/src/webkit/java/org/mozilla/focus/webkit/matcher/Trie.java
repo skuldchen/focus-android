@@ -32,11 +32,11 @@ import org.mozilla.focus.webkit.matcher.util.FocusString;
         }
 
         /* Convenience method so that clients aren't forced to do their own casting. */
-        public void putWhiteList(final FocusString string, final Trie whitelist) {
-            WhiteListTrie node = (WhiteListTrie) super.put(string);
+        public void putWhiteList(final String host, final Trie whitelist) {
+            WhiteListTrie node = (WhiteListTrie) super.put(host);
 
             if (node.whitelist != null) {
-                throw new IllegalStateException("Whitelist already set for node " + string);
+                throw new IllegalStateException("Whitelist already set for node " + host);
             }
 
             node.whitelist = whitelist;
@@ -116,20 +116,38 @@ import org.mozilla.focus.webkit.matcher.util.FocusString;
         }
     }
 
-    public Trie put(final FocusString string) {
-        if (string.length() == 0) {
-            terminator = true;
-            return this;
-        }
-
-        final char character = string.charAt(0);
-
-        final Trie child = put(character);
-
-        return child.put(string.substring(1));
+    /**
+     * Insert a given domain into the Trie.
+     *
+     * @param string Any normal domain name, e.g. "foo.bar.com".
+     * @return The node that represents the inserted domain.
+     */
+    public Trie put(final String string) {
+        return put(string, this);
     }
 
-    public Trie put(char character) {
+    /**
+     * Insert a given domain into the Trie. Callers should supply a normal domain (e.g. "foo.bar.com"),
+     * putChar() will take care of the appropriate domain reversal.
+     */
+    private static Trie put(final String string, final Trie root) {
+        Trie node = root;
+
+        for (int i = string.length() - 1; i >= 0; i--) {
+            final char c = string.charAt(i);
+
+            node = node.putChar(c);
+        }
+
+        node.terminator = true;
+        return node;
+    }
+
+    /**
+     * Obtain the child node representing a specific character. A new node will be created if
+     * necessary.
+     */
+    public Trie putChar(char character) {
         final Trie existingChild = children.get(character);
 
         if (existingChild != null) {
