@@ -253,7 +253,7 @@ public class UrlMatcher implements  SharedPreferences.OnSharedPreferenceChangeLi
 
         for (final Map.Entry<String, Trie> category : categories.entrySet()) {
             if (enabledCategories.contains(category.getKey()) &&
-                    category.getValue().findNode(resourceHost) != null) {
+                    category.getValue().findFirstNode(resourceHost) != null) {
                 previouslyMatched.add(resourceURLString);
                 return true;
             }

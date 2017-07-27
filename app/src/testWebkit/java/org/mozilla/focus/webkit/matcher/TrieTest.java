@@ -14,38 +14,38 @@ public class TrieTest {
     public void findNode() throws Exception {
         final Trie trie = Trie.createRootNode();
 
-        assertNull(trie.findNode("hello"));
+        assertNull(trie.findFirstNode("hello"));
 
         final Trie putNode = trie.put("hello");
-        final Trie foundNode = trie.findNode("hello");
+        final Trie foundNode = trie.findFirstNode("hello");
 
         assertNotNull(putNode);
         assertNotNull(foundNode);
         assertEquals(putNode, foundNode);
 
         // Substring matching: doesn't happen (except for subdomains, we test those later)
-        assertNull(trie.findNode("hell"));
-        assertNull(trie.findNode("hellop"));
+        assertNull(trie.findFirstNode("hell"));
+        assertNull(trie.findFirstNode("hellop"));
 
         trie.put("hellohello");
 
         // Ensure both old and new overlapping strings can still be found
-        assertNotNull(trie.findNode("hello"));
-        assertNotNull(trie.findNode("hellohello"));
+        assertNotNull(trie.findFirstNode("hello"));
+        assertNotNull(trie.findFirstNode("hellohello"));
 
         // These still don't match:
-        assertNull(trie.findNode("hell"));
-        assertNull(trie.findNode("hellop"));
+        assertNull(trie.findFirstNode("hell"));
+        assertNull(trie.findFirstNode("hellop"));
 
         // Domain specific / partial domain tests:
         trie.put("foo.com");
 
         // Domain and subdomain can be found
-        assertNotNull(trie.findNode("foo.com"));
-        assertNotNull(trie.findNode("bar.foo.com"));
+        assertNotNull(trie.findFirstNode("foo.com"));
+        assertNotNull(trie.findFirstNode("bar.foo.com"));
         // But other domains with some overlap don't match
-        assertNull(trie.findNode("bar-foo.com"));
-        assertNull(trie.findNode("oo.com"));
+        assertNull(trie.findFirstNode("bar-foo.com"));
+        assertNull(trie.findFirstNode("oo.com"));
     }
 
     @Test
@@ -61,14 +61,14 @@ public class TrieTest {
             trie.putWhiteList("def", whitelist);
         }
 
-        assertNull(trie.findNode("abc"));
+        assertNull(trie.findFirstNode("abc"));
 
         // In practice EntityList uses it's own search in order to cover all possible matching notes
         // (e.g. in case we have separate whitelists for mozilla.org and foo.mozilla.org), however
         // we don't need to test that here yet.
-        final WhiteListTrie foundWhitelist = (WhiteListTrie) trie.findNode("def");
+        final WhiteListTrie foundWhitelist = (WhiteListTrie) trie.findFirstNode("def");
         assertNotNull(foundWhitelist);
 
-        assertNotNull(foundWhitelist.whitelist.findNode("abc"));
+        assertNotNull(foundWhitelist.whitelist.findFirstNode("abc"));
     }
 }

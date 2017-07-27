@@ -44,8 +44,8 @@ import android.util.SparseArray;
     public final SparseArray<Trie> children = new SparseArray<>();
     public boolean terminator = false;
 
-    public @Nullable Trie findNode(final String input) {
-        return findNode(input, this);
+    public @Nullable Trie findFirstNode(final String input) {
+        return findFirstNode(input, this);
     }
 
     /**
@@ -69,10 +69,10 @@ import android.util.SparseArray;
      * See the following for more background on the evolution of our trie search:
      *
      */
-    private static @Nullable Trie findNode(final String input, final Trie rootNode) {
+    private static @Nullable Trie findFirstNode(final String input, final Trie rootNode) {
         // Note: if two nodes can validly represent a given domain, the shorter one is returned.
-        // E.g. if the trie contains both "bar.com" and "foo.bar.com", then findNode("foo.bar.com") or
-        // even findNode("*.foo.bar.com") will return the node for bar.com.
+        // E.g. if the trie contains both "bar.com" and "foo.bar.com", then findFirstNode("foo.bar.com") or
+        // even findFirstNode("*.foo.bar.com") will return the node for bar.com.
         // TODO: we could try to detect the above ^ when elements are being inserted into the Trie,
         // or alternatively we could store the first node that is found as a "candidate" while
         // continuing to search the trie for more specific entries.

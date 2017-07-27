@@ -63,7 +63,7 @@ import org.mozilla.focus.webkit.matcher.Trie.WhiteListTrie;
             if (node.terminator &&
                     node.whitelist != null &&
                     currentChar == '.' &&
-                    node.whitelist.findNode(resourceHost) != null) {
+                    node.whitelist.findFirstNode(resourceHost) != null) {
                 return true;
             }
 
@@ -73,6 +73,6 @@ import org.mozilla.focus.webkit.matcher.Trie.WhiteListTrie;
 
         return node.terminator &&
                 node.whitelist != null &&
-                node.whitelist.findNode(resourceHost) != null;
+                node.whitelist.findFirstNode(resourceHost) != null;
     }
 }
