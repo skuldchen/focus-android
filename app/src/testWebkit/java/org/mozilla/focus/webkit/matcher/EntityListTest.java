@@ -21,7 +21,11 @@ public class EntityListTest {
     public void testWhitelist() {
         final String mozillaOrg = "mozilla.org";
         final String fooMozillaOrg = "foo.mozilla.org";
+        final String fakeFooMozillaOrg = "foo-mozilla.org";
+
         final String fooCom = "foo.com";
+        final String barFooCom = "bar.foo.com";
+        final String fakeBarFooCom = "bar-foo.com";
         final String barCom = "bar.com";
 
         final EntityList entityList = new EntityList();
@@ -30,6 +34,11 @@ public class EntityListTest {
         // mozilla.org - allow all from foo.com
         // foo.mozilla.org - additionally allow from bar.com
         // Thus mozilla.org can only use foo.com, but foo.mozilla.org can use foo.com and bar.com
+        // Additionaly we do some sanity checks:
+        // foo-mozilla.org - that mozilla.org whitelists don't apply
+        // (i.e. arbitrary domains that contain mozilla.org don't match unless they're a subdomain)
+        // bar-foo.com doesn't get whitelisted on any of the above domains
+        // (similarly, no whitelisting except for subdomains)
 
         final Trie fooComTrie = Trie.createRootNode();
         fooComTrie.put(fooCom);
@@ -41,10 +50,14 @@ public class EntityListTest {
         entityList.putWhiteList(fooMozillaOrg, barComTrie);
 
         assertTrue(entityList.isWhiteListed(Uri.parse("http://" + mozillaOrg), Uri.parse("http://" + fooCom)));
+        assertTrue(entityList.isWhiteListed(Uri.parse("http://" + mozillaOrg), Uri.parse("http://" + barFooCom)));
+        assertFalse(entityList.isWhiteListed(Uri.parse("http://" + mozillaOrg), Uri.parse("http://" + fakeBarFooCom)));
         assertFalse(entityList.isWhiteListed(Uri.parse("http://" + mozillaOrg), Uri.parse("http://" + barCom)));
 
         assertTrue(entityList.isWhiteListed(Uri.parse("http://" + fooMozillaOrg), Uri.parse("http://" + fooCom)));
+        assertTrue(entityList.isWhiteListed(Uri.parse("http://" + fooMozillaOrg), Uri.parse("http://" + barFooCom)));
         assertTrue(entityList.isWhiteListed(Uri.parse("http://" + fooMozillaOrg), Uri.parse("http://" + barCom)));
+        assertFalse(entityList.isWhiteListed(Uri.parse("http://" + fooMozillaOrg), Uri.parse("http://" + fakeBarFooCom)));
 
         // Test some junk inputs to make sure we haven't messed up
         assertFalse(entityList.isWhiteListed(Uri.parse("http://" + barCom), Uri.parse("http://" + barCom)));
@@ -66,6 +79,12 @@ public class EntityListTest {
 
         // Check we don't whitelist resources from data: pages
         assertFalse(entityList.isWhiteListed(Uri.parse("data:text/html;stuff"), Uri.parse("http://" + fooCom + "/somewhereElse/bla/bla")));
+
+        // Check that fake non-subdomains don't match:
+        assertFalse(entityList.isWhiteListed(Uri.parse("http://" + fakeFooMozillaOrg), Uri.parse("http://" + fooCom)));
+        assertFalse(entityList.isWhiteListed(Uri.parse("http://" + fakeFooMozillaOrg), Uri.parse("http://" + barFooCom)));
+        assertFalse(entityList.isWhiteListed(Uri.parse("http://" + fakeFooMozillaOrg), Uri.parse("http://" + fakeBarFooCom)));
+        assertFalse(entityList.isWhiteListed(Uri.parse("http://" + fakeFooMozillaOrg), Uri.parse("http://" + barCom)));
     }
 
 }
