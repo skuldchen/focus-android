@@ -4,9 +4,13 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 package org.mozilla.focus.webkit.matcher;
 
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.SparseArray;
+
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /* package-private */ class Trie {
 
@@ -44,14 +48,10 @@ import android.util.SparseArray;
     public final SparseArray<Trie> children = new SparseArray<>();
     public boolean terminator = false;
 
-    public @Nullable Trie findFirstNode(final String input) {
-        return findFirstNode(input, this);
-    }
-
     /**
-     * Search for the node representing a specific domain.
+     * Iterator that impelements searching for the node representing a specific domain.
      *
-     * This is an iterative implementation, that is specific to domain searches (i.e. we assume
+     * Contains an iterative Trie search implementation, that is specific to domain searches (i.e. we assume
      * that the domain is stored in reverse format in the Trie, we therefore walk backwards along the
      * "input"/search string, and have special conditions for subdomains.
      *
@@ -67,48 +67,102 @@ import android.util.SparseArray;
      * implementations can therefore impact perceived page load performance.
      *
      * See the following for more background on the evolution of our trie search:
-     *
+     * - Why we use a Trie instead of iterating over a list of domains:
+     * https://github.com/mozilla-mobile/focus-android/issues/123
+     * - Why a naive recursive implementation is suboptimal:
+     * https://github.com/mozilla-mobile/focus-android/issues/571
      */
-    private static @Nullable Trie findFirstNode(final String input, final Trie rootNode) {
-        // Note: if two nodes can validly represent a given domain, the shorter one is returned.
-        // E.g. if the trie contains both "bar.com" and "foo.bar.com", then findFirstNode("foo.bar.com") or
-        // even findFirstNode("*.foo.bar.com") will return the node for bar.com.
-        // TODO: we could try to detect the above ^ when elements are being inserted into the Trie,
-        // or alternatively we could store the first node that is found as a "candidate" while
-        // continuing to search the trie for more specific entries.
-        // To detect insertion of subdomains, we need to verify whether the parent node is a "terminator"
-        // whenever a domain separator (i.e. '.') is encountered during node insertion.
+    public static class TrieIterator implements Iterator<Trie> {
+        private final @NonNull String searchTerm;
 
-        if (TextUtils.isEmpty(input)) {
-            return null;
+        /**
+         * The next node that will be returned by next().
+         *
+         * The only time this does not point to a valid matching node is during initialisation,
+         * when we point to the root of the Trie.
+         */
+        private @Nullable Trie node = null;
+        /**
+         * The next character after the character represented by node.
+         */
+        private int nextOffset = 0;
+
+        public TrieIterator(final @NonNull String searchTerm, final @NonNull Trie trie) {
+            this.searchTerm = searchTerm;
+            this.node = trie;
+            this.nextOffset = 0;
+
+            findAndUpdateNext();
         }
 
-        int offset = 0;
-        Trie node = rootNode;
+        @Override
+        public boolean hasNext() {
+            return node != null;
+        }
 
-        while (offset < input.length()) {
+        @Override
+        public Trie next() {
             if (node == null) {
-                return null;
+                throw new NoSuchElementException("No more matching nodes remaining");
             }
 
-            final int currentCharPosition = input.length() - 1 - offset;
-            final char currentChar = input.charAt(currentCharPosition);
+            final Trie current = node;
 
-            // Match achieved - and we're at a domain boundary. This is important, because
-            // we don't want to return on partial domain matches. (E.g. if the trie node is bar.com,
-            // and the search string is foo-bar.com, we shouldn't match. foo.bar.com should however match.)
-            if (node.terminator && currentChar == '.') {
-                return node;
-            }
+            findAndUpdateNext();
 
-            node = node.children.get(currentChar);
-            offset++;
+            return current;
         }
 
-        if (node.terminator) {
-            // This only happens in the case 1:1 matches - i.e. we finished walking the input string and found
-            // a terminator node exactly matching the input string. Partial matches (subdomains) are handled above.
-            return node;
+        /**
+         * Attempts to find the next matching node, and updates node/nextOffset to match.
+         */
+        private void findAndUpdateNext() {
+            if (TextUtils.isEmpty(searchTerm)) {
+                node = null;
+                return;
+            }
+
+            // length 5, offset max 4, length = 5,
+            while (nextOffset < searchTerm.length()) {
+                // Do a little calculation because we're traversing the string back to front. We could
+                // reverse the string in advance but that wastes memory and time.
+                final int characterPosition = searchTerm.length() - nextOffset - 1;
+                final char character = searchTerm.charAt(characterPosition);
+
+                node = node.children.get(character);
+
+                if (node == null) {
+                    return;
+                }
+
+                nextOffset++;
+
+                final int nextCharacterPosition = characterPosition - 1;
+                final boolean atLastCharacter = (characterPosition == 0);
+
+                if (node.terminator &&
+                        (atLastCharacter || // Indicates we're at the end of the
+                                searchTerm.charAt(nextCharacterPosition) == '.')) {
+                    return;
+                }
+            }
+
+            // Once we've reached the end of the string without any matches we're done. node points
+            // to a non-terminating node that happens to match our string (which is thus NOT a domain match),
+            // we need to clear it since node must only point to a valid matching node.
+            node = null;
+        }
+    }
+
+    public TrieIterator findNodes(final String input) {
+        return new TrieIterator(input, this);
+    }
+
+    public @Nullable Trie findFirstNode(final String input) {
+        final TrieIterator iterator = findNodes(input);
+
+        if (iterator.hasNext()) {
+            return iterator.next();
         } else {
             return null;
         }
