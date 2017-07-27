@@ -8,8 +8,6 @@ import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.SparseArray;
 
-import org.mozilla.focus.webkit.matcher.util.FocusString;
-
 /* package-private */ class Trie {
 
     /**

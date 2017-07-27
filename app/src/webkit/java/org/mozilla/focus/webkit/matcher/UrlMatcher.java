@@ -16,13 +16,9 @@ import android.support.v4.util.ArrayMap;
 import android.util.JsonReader;
 
 import org.mozilla.focus.R;
-import org.mozilla.focus.webkit.matcher.util.FocusString;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;

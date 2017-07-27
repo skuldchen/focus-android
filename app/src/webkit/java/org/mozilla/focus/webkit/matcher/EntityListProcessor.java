@@ -7,8 +7,6 @@ package org.mozilla.focus.webkit.matcher;
 
 import android.util.JsonReader;
 
-import org.mozilla.focus.webkit.matcher.util.FocusString;
-
 import java.io.IOException;
 import java.util.ArrayList;
 
