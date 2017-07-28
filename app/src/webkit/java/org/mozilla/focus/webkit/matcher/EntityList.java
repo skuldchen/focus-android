@@ -41,38 +41,20 @@ import org.mozilla.focus.webkit.matcher.Trie.WhiteListTrie;
     }
 
     private boolean isWhiteListed(final String siteHost, final String resourceHost, final Trie revHostTrie) {
-        // We could use Trie.findNode(), however it's possible to have subdomain specific whitelists - hence we need
-        // to manually search for every matching node (in effect we reimplement findNode, but continue past the
-        // first matching Node whereas findNode() simply returns the first matching Node).
-        // TODO: we could reimplement findNode() to return a lazy iterator (and add appropriate tests : ) )
+        // We need to find all entries that match the site host: it's possible for multiple whitelists
+        // to match a given domain, e.g. the whitelist can contain entries for both the root domain (bar.com)
+        // and subdomains (foo.bar.com). If we're visiting *.foo.bar.com we need to check whether a resource is whitelisted
+        // for either bar.com or foo.bar.com.
+        final Trie.TrieIterator iterator = revHostTrie.findNodes(siteHost);
 
-        int offset = 0;
-        WhiteListTrie node = (WhiteListTrie) revHostTrie;
+        while (iterator.hasNext()) {
+            final WhiteListTrie node = (WhiteListTrie) iterator.next();
 
-        while (offset < siteHost.length()) {
-            if (node == null) {
-                return false;
-            }
-
-            final int currentCharPosition = siteHost.length() - 1 - offset;
-            final char currentChar = siteHost.charAt(currentCharPosition);
-
-            // Match achieved - and we're at a domain boundary. This is important, because
-            // we don't want to return on partial domain matches. (E.g. if the trie node is bar.com,
-            // and the search string is foo-bar.com, we shouldn't match. foo.bar.com should however match.)
-            if (node.terminator &&
-                    node.whitelist != null &&
-                    currentChar == '.' &&
-                    node.whitelist.findFirstNode(resourceHost) != null) {
+            if (node.whitelist.findFirstNode(resourceHost) != null) {
                 return true;
             }
-
-            node = (WhiteListTrie) node.children.get(currentChar);
-            offset++;
         }
 
-        return node.terminator &&
-                node.whitelist != null &&
-                node.whitelist.findFirstNode(resourceHost) != null;
+        return false;
     }
 }
