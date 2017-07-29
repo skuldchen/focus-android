@@ -189,14 +189,15 @@ import java.util.NoSuchElementException;
         return new TrieIterator(host, this);
     }
 
-    public @Nullable Trie findFirstNode(final String host) {
+    /**
+     * Query whether a given hostname matches any entries in this Trie. Will return true for partial
+     * and complete matches. contains("foo.bar.com") will return true if any of "foo.bar.com", "bar.com",
+     * or "com" are contained in the Trie.
+     */
+    public boolean contains(final String host) {
         final TrieIterator iterator = findNodes(host);
 
-        if (iterator.hasNext()) {
-            return iterator.next();
-        } else {
-            return null;
-        }
+        return iterator.hasNext();
     }
 
     /**

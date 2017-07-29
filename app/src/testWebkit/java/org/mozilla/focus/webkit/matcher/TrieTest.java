@@ -14,38 +14,41 @@ public class TrieTest {
     public void findNode() throws Exception {
         final Trie trie = Trie.createRootNode();
 
-        assertNull(trie.findFirstNode("hello"));
+        assertFalse(trie.contains("hello"));
 
         final Trie putNode = trie.put("hello");
-        final Trie foundNode = trie.findFirstNode("hello");
+        final Trie.TrieIterator foundNodes = trie.findNodes("hello");
 
         assertNotNull(putNode);
-        assertNotNull(foundNode);
-        assertEquals(putNode, foundNode);
+        assertTrue(trie.contains("hello"));
+        // We've only inserted one matching domain, so it will be the first item (returned by next()).
+        assertTrue(foundNodes.hasNext());
+        assertEquals(putNode, foundNodes.next());
+        assertFalse(foundNodes.hasNext());
 
         // Substring matching: doesn't happen (except for subdomains, we test those later)
-        assertNull(trie.findFirstNode("hell"));
-        assertNull(trie.findFirstNode("hellop"));
+        assertFalse(trie.contains("hell"));
+        assertFalse(trie.contains("hellop"));
 
         trie.put("hellohello");
 
         // Ensure both old and new overlapping strings can still be found
-        assertNotNull(trie.findFirstNode("hello"));
-        assertNotNull(trie.findFirstNode("hellohello"));
+        assertTrue(trie.contains("hello"));
+        assertTrue(trie.contains("hellohello"));
 
         // These still don't match:
-        assertNull(trie.findFirstNode("hell"));
-        assertNull(trie.findFirstNode("hellop"));
+        assertFalse(trie.contains("hell"));
+        assertFalse(trie.contains("hellop"));
 
         // Domain specific / partial domain tests:
         trie.put("foo.com");
 
         // Domain and subdomain can be found
-        assertNotNull(trie.findFirstNode("foo.com"));
-        assertNotNull(trie.findFirstNode("bar.foo.com"));
+        assertTrue(trie.contains("foo.com"));
+        assertTrue(trie.contains("bar.foo.com"));
         // But other domains with some overlap don't match
-        assertNull(trie.findFirstNode("bar-foo.com"));
-        assertNull(trie.findFirstNode("oo.com"));
+        assertFalse(trie.contains("bar-foo.com"));
+        assertFalse(trie.contains("oo.com"));
     }
 
     @Test
@@ -61,14 +64,20 @@ public class TrieTest {
             trie.putWhiteList("def", whitelist);
         }
 
-        assertNull(trie.findFirstNode("abc"));
+        assertFalse(trie.contains("abc"));
 
         // In practice EntityList uses it's own search in order to cover all possible matching notes
         // (e.g. in case we have separate whitelists for mozilla.org and foo.mozilla.org), however
         // we don't need to test that here yet.
-        final WhiteListTrie foundWhitelist = (WhiteListTrie) trie.findFirstNode("def");
+        final Trie.TrieIterator iterator = trie.findNodes("def");
+
+        assertTrue(iterator.hasNext());
+        final WhiteListTrie foundWhitelist = (WhiteListTrie) iterator.next();
+        assertFalse(iterator.hasNext());
+
         assertNotNull(foundWhitelist);
 
-        assertNotNull(foundWhitelist.whitelist.findFirstNode("abc"));
+        assertTrue(foundWhitelist.whitelist.contains("abc"));
+        assertFalse(foundWhitelist.whitelist.contains("def"));
     }
 }

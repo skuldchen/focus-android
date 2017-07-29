@@ -50,7 +50,7 @@ import org.mozilla.focus.webkit.matcher.Trie.WhiteListTrie;
         while (iterator.hasNext()) {
             final WhiteListTrie node = (WhiteListTrie) iterator.next();
 
-            if (node.whitelist.findFirstNode(resourceHost) != null) {
+            if (node.whitelist.contains(resourceHost)) {
                 return true;
             }
         }
