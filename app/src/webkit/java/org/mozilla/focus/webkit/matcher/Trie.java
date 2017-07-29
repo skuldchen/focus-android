@@ -12,6 +12,21 @@ import android.util.SparseArray;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+/**
+ * A domain specific Trie implementation.
+ *
+ * Domains are stored in reversed format. e.g. if abd.de and efg.hi are stored, the root node
+ * will point to e and i. This means that subdomains will end up being children of their root domain
+ * (which is important since subdomains are considered to match root domains).
+ * Clients of Trie do not need to care about this: domains should be inserted as a normal String (e.g. foo.com),
+ * searches should also be performed with a normal string (foo.com, bar.foo.com, etc), Trie will
+ * take care of the appropriate reversal.
+ *
+ * See also some online documentation:
+ *
+ * And a blog post on the topic (note: this blog post contains partially outdated information
+ * regarding the implementation of Trie search).
+ */
 /* package-private */ class Trie {
 
     /**
@@ -46,7 +61,12 @@ import java.util.NoSuchElementException;
     }
 
     public final SparseArray<Trie> children = new SparseArray<>();
-    public boolean terminator = false;
+
+    /**
+     * Whether this node represents a valid domain. Should be true for the node that represents
+     * the first character in a domain, i.e. the 'f' in foo.com.
+     */
+    public boolean isDomain = false;
 
     /**
      * Iterator that implements searching for the node representing a specific domain.
@@ -78,12 +98,14 @@ import java.util.NoSuchElementException;
         /**
          * The next node that will be returned by next().
          *
-         * The only time this does not point to a valid matching node is during initialisation,
+         * The only time this does not point to a valid matching node (or null) is during initialisation,
          * when we point to the root of the Trie.
          */
         private @Nullable Trie node = null;
+
         /**
-         * The next character after the character represented by node.
+         * The next character after the character represented by node. I.e. the next character we
+         * need to search for after calling next().
          */
         private int nextOffset;
 
@@ -140,7 +162,7 @@ import java.util.NoSuchElementException;
                 final int nextCharacterPosition = characterPosition - 1;
                 final boolean atLastCharacter = (characterPosition == 0);
 
-                if (node.terminator &&
+                if (node.isDomain &&
                         (atLastCharacter || // Indicates we're at the end of the
                                 searchTerm.charAt(nextCharacterPosition) == '.')) {
                     return;
@@ -154,12 +176,21 @@ import java.util.NoSuchElementException;
         }
     }
 
-    public TrieIterator findNodes(final String input) {
-        return new TrieIterator(input, this);
+    /**
+     * Find all entries that match a given hostname.
+     *
+     * @param host Hostname to search for.
+     * @return All entries that match the requested hostname, including all superdomains. If you
+     * search for foo.bar.com, nodes representing bar.com and foo.bar.com will be returned (assuming
+     * that both bar.com and foo.bar.com have previously been inserted into the Trie). No ordering
+     * is guaranteed, although this implementation will return shorter matches first (bar.com before foo.bar.com).
+     */
+    public TrieIterator findNodes(final String host) {
+        return new TrieIterator(host, this);
     }
 
-    public @Nullable Trie findFirstNode(final String input) {
-        final TrieIterator iterator = findNodes(input);
+    public @Nullable Trie findFirstNode(final String host) {
+        final TrieIterator iterator = findNodes(host);
 
         if (iterator.hasNext()) {
             return iterator.next();
@@ -171,27 +202,27 @@ import java.util.NoSuchElementException;
     /**
      * Insert a given domain into the Trie.
      *
-     * @param string Any normal domain name, e.g. "foo.bar.com".
+     * @param host Any domain name, e.g. "foo.bar.com".
      * @return The node that represents the inserted domain.
      */
-    public Trie put(final String string) {
-        return put(string, this);
+    public Trie put(final String host) {
+        return put(host, this);
     }
 
     /**
      * Insert a given domain into the Trie. Callers should supply a normal domain (e.g. "foo.bar.com"),
      * putChar() will take care of the appropriate domain reversal.
      */
-    private static Trie put(final String string, final Trie root) {
+    private static Trie put(final String host, final Trie root) {
         Trie node = root;
 
-        for (int i = string.length() - 1; i >= 0; i--) {
-            final char c = string.charAt(i);
+        for (int i = host.length() - 1; i >= 0; i--) {
+            final char c = host.charAt(i);
 
             node = node.putChar(c);
         }
 
-        node.terminator = true;
+        node.isDomain = true;
         return node;
     }
 
@@ -199,7 +230,7 @@ import java.util.NoSuchElementException;
      * Obtain the child node representing a specific character. A new node will be created if
      * necessary.
      */
-    public Trie putChar(char character) {
+    public Trie putChar(final char character) {
         final Trie existingChild = children.get(character);
 
         if (existingChild != null) {
@@ -213,7 +244,7 @@ import java.util.NoSuchElementException;
         return newChild;
     }
 
-    private Trie(char character, Trie parent) {
+    private Trie(final char character, final Trie parent) {
         if (parent != null) {
             parent.children.put(character, this);
         }
