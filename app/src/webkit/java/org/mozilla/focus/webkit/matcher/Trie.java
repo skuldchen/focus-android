@@ -49,7 +49,7 @@ import java.util.NoSuchElementException;
     public boolean terminator = false;
 
     /**
-     * Iterator that impelements searching for the node representing a specific domain.
+     * Iterator that implements searching for the node representing a specific domain.
      *
      * Contains an iterative Trie search implementation, that is specific to domain searches (i.e. we assume
      * that the domain is stored in reverse format in the Trie, we therefore walk backwards along the
@@ -85,7 +85,7 @@ import java.util.NoSuchElementException;
         /**
          * The next character after the character represented by node.
          */
-        private int nextOffset = 0;
+        private int nextOffset;
 
         public TrieIterator(final @NonNull String searchTerm, final @NonNull Trie trie) {
             this.searchTerm = searchTerm;
