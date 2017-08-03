@@ -170,10 +170,11 @@ public class ScreenGrabTest {
         finishBtn.click();
 
         /* Home View*/
-        UiObject urlBar = mDevice.findObject(new UiSelector()
-                .resourceId("org.mozilla.focus.debug:id/fake_urlbar")
-                .clickable(true));
-        urlBar.waitForExists(waitingTime);
+        UiObject inlineAutocompleteEditText = mDevice.findObject(new UiSelector()
+                .resourceId("org.mozilla.focus.debug:id/url_edit")
+                .focused(true)
+                .enabled(true));
+        inlineAutocompleteEditText.waitForExists(waitingTime);
         Screengrab.screenshot("Home_View");
 
         /* Main View Menu */
@@ -221,11 +222,6 @@ public class ScreenGrabTest {
 
         /* Location Bar View */
         mDevice.pressBack();
-        urlBar.click();
-        UiObject inlineAutocompleteEditText = mDevice.findObject(new UiSelector()
-                .resourceId("org.mozilla.focus.debug:id/url_edit")
-                .focused(true)
-                .enabled(true));
         inlineAutocompleteEditText.waitForExists(waitingTime);
         Screengrab.screenshot("LocationBarEmptyState");
 
@@ -270,6 +266,22 @@ public class ScreenGrabTest {
         applist.waitForExists(waitingTime);
         Screengrab.screenshot("Share_Dialog");
 
+        /* Check Add to homescreen */
+        mDevice.pressBack();
+        menuButton.perform(click());
+        UiObject AddtoHS = TestHelper.mDevice.findObject(new UiSelector()
+                .resourceId("org.mozilla.focus.debug:id/add_to_homescreen")
+                .enabled(true));
+        UiObject AddtoHSCancelBtn = TestHelper.mDevice.findObject(new UiSelector()
+                .resourceId("android:id/button2")
+                .enabled(true));
+
+        AddtoHS.waitForExists(waitingTime);
+        AddtoHS.click();
+        AddtoHSCancelBtn.waitForExists(waitingTime);
+        Screengrab.screenshot("AddtoHSDialog");
+        AddtoHSCancelBtn.click();
+
         /* Notification bar caption */
         mDevice.openNotification();
         UiObject notificationBarDeleteItem = mDevice.findObject(new UiSelector()
@@ -279,7 +291,7 @@ public class ScreenGrabTest {
         notificationBarDeleteItem.waitForExists(waitingTime);
 
         Screengrab.screenshot("DeleteHistory_NotificationBar");
-        mDevice.pressBack();
+        //mDevice.pressBack();
 
         /* History Erase Notification */
         mDevice.pressBack();
@@ -335,19 +347,16 @@ public class ScreenGrabTest {
         FirstSelection.click();
         mDevice.wait(Until.hasObject(settingsHeading),waitingTime);
         UiScrollable settingsView = new UiScrollable(new UiSelector().scrollable(true));
-        settingsView.scrollToEnd(3);
+        settingsView.scrollToEnd(4);
         Screengrab.screenshot("Settings_View_Bottom");
 
         // Go back
         mDevice.pressBack();
-        urlBar.waitForExists(waitingTime);
-        urlBar.click();
 
         /* Take image context menu screenshot */
         UiObject titleMsg = TestHelper.mDevice.findObject(new UiSelector()
                 .description("focus test page")
                 .enabled(true));
-
         UiObject rabbitImage = TestHelper.mDevice.findObject(new UiSelector()
                 .description("Smiley face")
                 .enabled(true));
@@ -386,8 +395,6 @@ public class ScreenGrabTest {
         cancelBtn.click();
         inlineAutocompleteEditText.waitForExists(waitingTime);
         mDevice.pressBack();
-        urlBar.waitForExists(waitingTime);
-        urlBar.click();
         UiObject tryAgainBtn = mDevice.findObject(new UiSelector()
                 .resourceId("errorTryAgain")
                 .clickable(true));
