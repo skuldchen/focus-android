@@ -20,6 +20,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import static android.support.test.espresso.action.ViewActions.click;
+import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertTrue;
 import static org.mozilla.focus.activity.TestHelper.waitingTime;
 import static org.mozilla.focus.fragment.FirstrunFragment.FIRSTRUN_PREF;
@@ -106,6 +107,13 @@ public class SearchEngineSelectionTest {
         assertTrue (TestHelper.browserURLbar.getText().contains("mozilla"));
         assertTrue (TestHelper.browserURLbar.getText().contains("focus"));
 
+        /* tap url bar, and check it displays search term instead of URL */
+        // Currently this part fails due to #1065
+        //TestHelper.browserURLbar.click();
+        //TestHelper.inlineAutocompleteEditText.waitForExists(waitingTime);
+        //assertEquals(TestHelper.inlineAutocompleteEditText.getText(), "mozilla focus");
+        //TestHelper.cleartextField.click();
+
         // Now let's change the search engine back to Yahoo
         TestHelper.menuButton.perform(click());
         TestHelper.browserViewSettingsMenuItem.click();
@@ -133,5 +141,10 @@ public class SearchEngineSelectionTest {
         assertTrue (TestHelper.browserURLbar.getText().contains("yahoo"));
         assertTrue (TestHelper.browserURLbar.getText().contains("mozilla"));
         assertTrue (TestHelper.browserURLbar.getText().contains("focus"));
+
+        /* tap url bar, and check it displays search term instead of URL */
+        TestHelper.browserURLbar.click();
+        TestHelper.inlineAutocompleteEditText.waitForExists(waitingTime);
+        assertEquals(TestHelper.inlineAutocompleteEditText.getText(), "mozilla focus");
     }
 }
