@@ -280,7 +280,8 @@ public class ScreenGrabTest {
         AddtoHS.click();
         AddtoHSCancelBtn.waitForExists(waitingTime);
         Screengrab.screenshot("AddtoHSDialog");
-        AddtoHSCancelBtn.click();
+        TestHelper.pressBackKey();
+        TestHelper.pressBackKey();
 
         /* Notification bar caption */
         mDevice.openNotification();
