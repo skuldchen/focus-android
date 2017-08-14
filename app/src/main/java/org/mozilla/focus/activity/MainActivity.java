@@ -5,12 +5,17 @@
 
 package org.mozilla.focus.activity;
 
+import android.arch.lifecycle.LifecycleRegistry;
+import android.arch.lifecycle.LifecycleRegistryOwner;
+import android.arch.lifecycle.Observer;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v4.app.FragmentManager;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 
@@ -20,6 +25,8 @@ import org.mozilla.focus.fragment.FirstrunFragment;
 import org.mozilla.focus.fragment.UrlInputFragment;
 import org.mozilla.focus.locale.LocaleAwareAppCompatActivity;
 import org.mozilla.focus.notification.BrowsingNotificationService;
+import org.mozilla.focus.session.Session;
+import org.mozilla.focus.session.SessionManager;
 import org.mozilla.focus.shortcut.HomeScreen;
 import org.mozilla.focus.telemetry.TelemetryWrapper;
 import org.mozilla.focus.utils.SafeIntent;
@@ -29,7 +36,9 @@ import org.mozilla.focus.web.BrowsingSession;
 import org.mozilla.focus.web.IWebView;
 import org.mozilla.focus.web.WebViewProvider;
 
-public class MainActivity extends LocaleAwareAppCompatActivity {
+import java.util.List;
+
+public class MainActivity extends LocaleAwareAppCompatActivity implements LifecycleRegistryOwner {
     public static final String ACTION_ERASE = "erase";
     public static final String ACTION_OPEN = "open";
 
@@ -39,7 +48,20 @@ public class MainActivity extends LocaleAwareAppCompatActivity {
 
     private static final String EXTRA_SHORTCUT = "shortcut";
 
+    final LifecycleRegistry lifecycleRegistry = new LifecycleRegistry(this);
+
+    // TODO: Move into base class?
+    @Override
+    public LifecycleRegistry getLifecycle() {
+        return lifecycleRegistry;
+    }
+
+    private final SessionManager sessionManager;
     private String pendingUrl;
+
+    public MainActivity() {
+        sessionManager = SessionManager.getInstance();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,13 +71,17 @@ public class MainActivity extends LocaleAwareAppCompatActivity {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         }
 
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
 
         setContentView(R.layout.activity_main);
 
-        SafeIntent intent = new SafeIntent(getIntent());
+        final SafeIntent intent = new SafeIntent(getIntent());
+        sessionManager.handleIntent(intent, savedInstanceState);
 
+        sessionManager.getSessions().observe(this, sessionsObserver);
+
+
+        /*
         if ((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
                 && !BrowsingSession.getInstance().isActive()) {
             // This Intent was launched from history (recent apps). Android will redeliver the
@@ -90,9 +116,23 @@ public class MainActivity extends LocaleAwareAppCompatActivity {
                 }
             }
         }
+        */
 
         WebViewProvider.preload(this);
     }
+
+    private Observer<List<Session>> sessionsObserver = new Observer<List<Session>>() {
+        @Override
+        public void onChanged(@Nullable List<Session> sessions) {
+            Log.w("SKDBG", "SESSIONS: " + sessions.size());
+
+            if (sessions.isEmpty()) {
+                showHomeScreen();
+            } else {
+                showBrowserScreenForCurrentSession();
+            }
+        }
+    };
 
     @Override
     public void applyLocale() {
@@ -178,7 +218,7 @@ public class MainActivity extends LocaleAwareAppCompatActivity {
             // We have received an URL in onNewIntent(). Let's load it now.
             // Unless we're trying to show the firstrun screen, in which case we leave it pending until
             // firstrun is dismissed.
-            showBrowserScreen(pendingUrl);
+            //showBrowserScreen(pendingUrl);
             pendingUrl = null;
         }
     }
@@ -224,7 +264,7 @@ public class MainActivity extends LocaleAwareAppCompatActivity {
         if (fragmentManager.findFragmentByTag(UrlInputFragment.FRAGMENT_TAG) == null) {
             fragmentManager
                     .beginTransaction()
-                    .replace(R.id.container, UrlInputFragment.createWithBackground(), UrlInputFragment.FRAGMENT_TAG)
+                    .replace(R.id.container, UrlInputFragment.createWithoutSession(), UrlInputFragment.FRAGMENT_TAG)
                     .commit();
         }
     }
@@ -239,13 +279,16 @@ public class MainActivity extends LocaleAwareAppCompatActivity {
         }
     }
 
-    private void showBrowserScreen(String url) {
+    private void showBrowserScreenForCurrentSession() {
         getSupportFragmentManager()
                 .beginTransaction()
                 .replace(R.id.container,
-                        BrowserFragment.create(url), BrowserFragment.FRAGMENT_TAG)
+                        BrowserFragment.createForSession(sessionManager.getCurrentSession()), BrowserFragment.FRAGMENT_TAG)
                 .commit();
 
+        // TODO: Telemetry?
+
+        /*
         final SafeIntent intent = new SafeIntent(getIntent());
 
         if (intent.getBooleanExtra(EXTRA_TEXT_SELECTION, false)) {
@@ -257,13 +300,13 @@ public class MainActivity extends LocaleAwareAppCompatActivity {
         } else {
             TelemetryWrapper.browseIntentEvent();
         }
+        */
     }
 
     @Override
     public View onCreateView(String name, Context context, AttributeSet attrs) {
         if (name.equals(IWebView.class.getName())) {
-            View v = WebViewProvider.create(this, attrs);
-            return v;
+            return WebViewProvider.create(this, attrs);
         }
 
         return super.onCreateView(name, context, attrs);
@@ -297,7 +340,7 @@ public class MainActivity extends LocaleAwareAppCompatActivity {
     public void firstrunFinished() {
         if (pendingUrl != null) {
             // We have received an URL in onNewIntent(). Let's load it now.
-            showBrowserScreen(pendingUrl);
+            //showBrowserScreen(pendingUrl);
             pendingUrl = null;
         } else {
             showHomeScreen();

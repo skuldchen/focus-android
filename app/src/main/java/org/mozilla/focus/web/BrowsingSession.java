@@ -24,10 +24,6 @@ import java.util.Map;
 public class BrowsingSession {
     private static BrowsingSession instance;
 
-    public interface TrackingCountListener {
-        void onTrackingCountChanged(int trackingCount);
-    }
-
     public static synchronized BrowsingSession getInstance() {
         if (instance == null) {
             instance = new BrowsingSession();
@@ -36,14 +32,11 @@ public class BrowsingSession {
     }
 
     private boolean isActive;
-    private int blockedTrackers;
-    private WeakReference<TrackingCountListener> listenerWeakReference;
     private @Nullable CustomTabConfig customTabConfig;
 
     private Map<String, Bundle> webViewStates;
 
     private BrowsingSession() {
-        listenerWeakReference = new WeakReference<>(null);
         webViewStates = new HashMap<>();
     }
 
@@ -59,24 +52,6 @@ public class BrowsingSession {
 
     public boolean isActive() {
         return isActive;
-    }
-
-    public void countBlockedTracker() {
-        blockedTrackers++;
-
-        final TrackingCountListener listener = listenerWeakReference.get();
-        if (listener != null) {
-            listener.onTrackingCountChanged(blockedTrackers);
-        }
-    }
-
-    public void setTrackingCountListener(TrackingCountListener listener) {
-        listenerWeakReference = new WeakReference<>(listener);
-        listener.onTrackingCountChanged(blockedTrackers);
-    }
-
-    public void resetTrackerCount() {
-        blockedTrackers = 0;
     }
 
     public void loadCustomTabConfig(final @NonNull Context context, final @NonNull SafeIntent intent) {

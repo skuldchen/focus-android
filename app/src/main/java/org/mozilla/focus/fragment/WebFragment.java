@@ -19,6 +19,7 @@ import android.webkit.WebView;
 import org.mozilla.focus.R;
 import org.mozilla.focus.locale.LocaleAwareFragment;
 import org.mozilla.focus.locale.LocaleManager;
+import org.mozilla.focus.session.Session;
 import org.mozilla.focus.web.IWebView;
 
 import java.util.Locale;
@@ -38,6 +39,8 @@ public abstract class WebFragment extends LocaleAwareFragment {
     public abstract View inflateLayout(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState);
 
     public abstract IWebView.Callback createCallback();
+
+    public abstract Session getSession();
 
     /**
      * Get the initial URL to load after the view has been created.

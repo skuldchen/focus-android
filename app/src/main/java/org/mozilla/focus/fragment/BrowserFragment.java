@@ -9,6 +9,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.app.PendingIntent;
+import android.arch.lifecycle.Observer;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -45,12 +46,16 @@ import org.mozilla.focus.R;
 import org.mozilla.focus.activity.InfoActivity;
 import org.mozilla.focus.activity.InstallFirefoxActivity;
 import org.mozilla.focus.animation.TransitionDrawableGroup;
+import org.mozilla.focus.architecture.NonNullObserver;
 import org.mozilla.focus.broadcastreceiver.DownloadBroadcastReceiver;
 import org.mozilla.focus.locale.LocaleAwareAppCompatActivity;
 import org.mozilla.focus.menu.BrowserMenu;
 import org.mozilla.focus.menu.WebContextMenu;
 import org.mozilla.focus.notification.BrowsingNotificationService;
 import org.mozilla.focus.open.OpenWithFragment;
+import org.mozilla.focus.session.Session;
+import org.mozilla.focus.session.SessionCallbackProxy;
+import org.mozilla.focus.session.SessionManager;
 import org.mozilla.focus.telemetry.TelemetryWrapper;
 import org.mozilla.focus.utils.Browsers;
 import org.mozilla.focus.utils.ColorUtils;
@@ -74,12 +79,23 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
 
     private static int REQUEST_CODE_STORAGE_PERMISSION = 101;
     private static final int ANIMATION_DURATION = 300;
-    private static final String ARGUMENT_URL = "url";
+    //private static final String ARGUMENT_URL = "url";
+    private static final String ARGUMENT_SESSION_UUID = "sessionUUID";
     private static final String RESTORE_KEY_DOWNLOAD = "download";
 
     public static BrowserFragment create(String url) {
         Bundle arguments = new Bundle();
-        arguments.putString(ARGUMENT_URL, url);
+        //arguments.putString(ARGUMENT_URL, url);
+
+        BrowserFragment fragment = new BrowserFragment();
+        fragment.setArguments(arguments);
+
+        return fragment;
+    }
+
+    public static BrowserFragment createForSession(Session session) {
+        final Bundle arguments = new Bundle();
+        arguments.putString(ARGUMENT_SESSION_UUID, session.getUUID());
 
         BrowserFragment fragment = new BrowserFragment();
         fragment.setArguments(arguments);
@@ -115,15 +131,48 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
 
     private IWebView.FullscreenCallback fullscreenCallback;
 
-    private boolean isLoading = false;
-
     private DownloadManager manager;
 
     private DownloadBroadcastReceiver downloadBroadcastReceiver;
 
-    // Set an initial WeakReference so we never have to handle loadStateListenerWeakReference being null
-    // (i.e. so we can always just .get()).
-    private WeakReference<LoadStateListener> loadStateListenerWeakReference = new WeakReference<>(null);
+    private Session session;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        final String sessionUUID = getArguments().getString(ARGUMENT_SESSION_UUID);
+        if (sessionUUID == null) {
+            throw new IllegalAccessError("No session exists");
+        }
+
+        session = SessionManager.getInstance().getSessionByUUID(sessionUUID);
+
+        session.getBlockedTrackers().observe(this, new Observer<Integer>() {
+            @Override
+            public void onChanged(@Nullable Integer blockedTrackers) {
+                if (menuWeakReference == null) {
+                    return;
+                }
+
+                final BrowserMenu menu = menuWeakReference.get();
+
+                if (menu != null) {
+                    //noinspection ConstantConditions - Not null
+                    menu.updateTrackers(blockedTrackers);
+                }
+            }
+        });
+    }
+
+    public Session getSession() {
+        return session;
+    }
+
+    @Override
+    public String getInitialUrl() {
+        return session.getUrl().getValue();
+    }
 
     @Override
     public void onAttach(Context context) {
@@ -146,15 +195,6 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
     }
 
     @Override
-    public String getInitialUrl() {
-        return getArguments().getString(ARGUMENT_URL);
-    }
-
-    private void updateURL(final String url) {
-        urlView.setText(UrlUtils.stripUserInfo(url));
-    }
-
-    @Override
     public View inflateLayout(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         if (savedInstanceState != null && savedInstanceState.containsKey(RESTORE_KEY_DOWNLOAD)) {
             // If this activity was destroyed before we could start a download (e.g. because we were waiting for a permission)
@@ -171,7 +211,15 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
         statusBar = view.findViewById(R.id.status_bar_background);
 
         urlView = (TextView) view.findViewById(R.id.display_url);
-        updateURL(getInitialUrl());
+
+        //updateURL(getInitialUrl());
+
+        session.getUrl().observe(this, new Observer<String>() {
+            @Override
+            public void onChanged(@Nullable String url) {
+                urlView.setText(UrlUtils.stripUserInfo(url));
+            }
+        });
 
         final View toolbarContent = view.findViewById(R.id.toolbar_content);
 
@@ -212,6 +260,33 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
                 (TransitionDrawable) statusBar.getBackground()
         );
 
+        session.getLoading().observe(this, new NonNullObserver<Boolean>() {
+            @Override
+            public void onValueChanged(@NonNull Boolean loading) {
+                if (loading) {
+                    backgroundTransitionGroup.resetTransition();
+
+                    progressView.setProgress(5);
+                    progressView.setVisibility(View.VISIBLE);
+
+
+                } else {
+                    backgroundTransitionGroup.startTransition(ANIMATION_DURATION);
+
+                    progressView.setVisibility(View.GONE);
+                }
+
+                updateBlockingBadging(loading || isBlockingEnabled());
+
+                updateToolbarButtonStates(loading);
+
+                final BrowserMenu menu = menuWeakReference.get();
+                if (menu != null) {
+                    menu.updateLoading(loading);
+                }
+            }
+        });
+
         if ((refreshButton = view.findViewById(R.id.refresh)) != null) {
             refreshButton.setOnClickListener(this);
         }
@@ -234,8 +309,20 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
         blockView = (FrameLayout) view.findViewById(R.id.block);
 
         lockView = (ImageView) view.findViewById(R.id.lock);
+        session.getSecure().observe(this, new Observer<Boolean>() {
+            @Override
+            public void onChanged(Boolean secure) {
+                lockView.setVisibility(secure ? View.VISIBLE : View.GONE);
+            }
+        });
 
         progressView = (AnimatedProgressBar) view.findViewById(R.id.progress);
+        session.getProgress().observe(this, new Observer<Integer>() {
+            @Override
+            public void onChanged(Integer progress) {
+                progressView.setProgress(progress);
+            }
+        });
 
         menuView = (ImageButton) view.findViewById(R.id.menu);
         menuView.setOnClickListener(this);
@@ -343,82 +430,26 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
         }
     }
 
-    public interface LoadStateListener {
-        void isLoadingChanged(boolean isLoading);
-    }
-
-    /**
-     * Set a (singular) LoadStateListener. Only one listener is supported at any given time. Setting
-     * a new listener means any previously set listeners will be dropped. This is only intended
-     * to be used by NavigationItemViewHolder. If you want to use this method for any other
-     * parts of the codebase, please extend it to handle a list of listeners. (We would also need
-     * to automatically clean up expired listeners from that list, probably when adding to that list.)
-     *
-     * @param listener The listener to notify of load state changes. Only a weak reference will be kept,
-     *                 no more calls will be sent once the listener is garbage collected.
-     */
-    public void setIsLoadingListener(final LoadStateListener listener) {
-        loadStateListenerWeakReference = new WeakReference<>(listener);
-    }
-
-    private void updateIsLoading(final boolean isLoading) {
-        this.isLoading = isLoading;
-        final LoadStateListener currentListener = loadStateListenerWeakReference.get();
-        if (currentListener != null) {
-            currentListener.isLoadingChanged(isLoading);
-        }
-    }
-
     @Override
     public IWebView.Callback createCallback() {
-        return new IWebView.Callback() {
+        return new SessionCallbackProxy(session, new IWebView.Callback() {
             @Override
-            public void onPageStarted(final String url) {
-                updateIsLoading(true);
-
-                lockView.setVisibility(View.GONE);
-
-                // Hide badging while loading
-                updateBlockingBadging(true);
-
-                progressView.announceForAccessibility(getString(R.string.accessibility_announcement_loading));
-
-                backgroundTransitionGroup.resetTransition();
-
-                progressView.setProgress(5);
-                progressView.setVisibility(View.VISIBLE);
-
-                updateToolbarButtonStates();
-            }
+            public void onPageStarted(final String url) {}
 
             @Override
-            public void onPageFinished(boolean isSecure) {
-                updateIsLoading(false);
-
-                backgroundTransitionGroup.startTransition(ANIMATION_DURATION);
-
-                progressView.announceForAccessibility(getString(R.string.accessibility_announcement_loading_finished));
-
-                progressView.setVisibility(View.GONE);
-
-                if (isSecure) {
-                    lockView.setVisibility(View.VISIBLE);
-                }
-
-                updateBlockingBadging(isBlockingEnabled());
-
-                updateToolbarButtonStates();
-            }
+            public void onPageFinished(boolean isSecure) {}
 
             @Override
-            public void onURLChanged(final String url) {
-                updateURL(url);
-            }
+            public void onURLChanged(final String url) {}
 
             @Override
-            public void onProgress(int progress) {
-                progressView.setProgress(progress);
-            }
+            public void onProgress(int progress) {}
+
+            @Override
+            public void countBlockedTracker() {}
+
+            @Override
+            public void resetBlockedTrackers() {}
 
             @Override
             public boolean handleExternalUrl(final String url) {
@@ -492,7 +523,7 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
                     requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_STORAGE_PERMISSION);
                 }
             }
-        };
+        });
     }
 
     /**
@@ -718,6 +749,7 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
     public void eraseAndShowHomeScreen(final boolean animateErase) {
         erase();
 
+        /*
         final FragmentTransaction transaction = getActivity().getSupportFragmentManager()
                 .beginTransaction();
 
@@ -728,7 +760,12 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
         transaction
                 .replace(R.id.container, UrlInputFragment.createWithBackground(), UrlInputFragment.FRAGMENT_TAG)
                 .commit();
+        */
 
+
+        SessionManager.getInstance().removeSessions();
+
+        // TODO: Move handling this to MainActivity?
         ViewUtils.showBrandedSnackbar(getActivity().findViewById(android.R.id.content),
                 R.string.feedback_erase,
                 getResources().getInteger(R.integer.erase_snackbar_delay));
@@ -753,7 +790,7 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
 
             case R.id.display_url:
                 final Fragment urlFragment = UrlInputFragment
-                        .createAsOverlay(getUrl(), urlView);
+                        .createWithSession(session, urlView);
 
                 getActivity().getSupportFragmentManager()
                         .beginTransaction()
@@ -887,7 +924,7 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
         }
     }
 
-    private void updateToolbarButtonStates() {
+    private void updateToolbarButtonStates(boolean isLoading) {
         if (forwardButton == null || backButton == null || refreshButton == null || stopButton == null) {
             return;
         }
@@ -921,10 +958,6 @@ public class BrowserFragment extends WebFragment implements View.OnClickListener
     public boolean canGoForward() {
         final IWebView webView = getWebView();
         return webView != null && webView.canGoForward();
-    }
-
-    public boolean isLoading() {
-        return isLoading;
     }
 
     public boolean canGoBack() {

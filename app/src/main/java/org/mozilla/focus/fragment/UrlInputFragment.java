@@ -11,6 +11,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.widget.PopupMenu;
@@ -30,6 +31,8 @@ import org.mozilla.focus.activity.InfoActivity;
 import org.mozilla.focus.autocomplete.UrlAutoCompleteFilter;
 import org.mozilla.focus.locale.LocaleAwareAppCompatActivity;
 import org.mozilla.focus.locale.LocaleAwareFragment;
+import org.mozilla.focus.session.Session;
+import org.mozilla.focus.session.SessionManager;
 import org.mozilla.focus.telemetry.TelemetryWrapper;
 import org.mozilla.focus.utils.ThreadUtils;
 import org.mozilla.focus.utils.UrlUtils;
@@ -48,11 +51,42 @@ public class UrlInputFragment extends LocaleAwareFragment implements View.OnClic
     private static final String ARGUMENT_Y = "y";
     private static final String ARGUMENT_WIDTH = "width";
     private static final String ARGUMENT_HEIGHT = "height";
+
     private static final String ARGUMENT_OVERLAY = "translucent";
+    private static final String ARGUMENT_SESSION_UUID = "sesssion_uuid";
 
     private static final String ANIMATION_BROWSER_SCREEN = "browser_screen";
 
     private static final int ANIMATION_DURATION = 200;
+
+    public static UrlInputFragment createWithoutSession() {
+        final Bundle arguments = new Bundle();
+
+        final UrlInputFragment fragment = new UrlInputFragment();
+        fragment.setArguments(arguments);
+
+        return fragment;
+    }
+
+    public static UrlInputFragment createWithSession(@NonNull Session session, View urlView) {
+        final Bundle arguments = new Bundle();
+
+        arguments.putString(ARGUMENT_SESSION_UUID, session.getUUID());
+        arguments.putString(ARGUMENT_ANIMATION, ANIMATION_BROWSER_SCREEN);
+
+        int[] screenLocation = new int[2];
+        urlView.getLocationOnScreen(screenLocation);
+
+        arguments.putInt(ARGUMENT_X, screenLocation[0]);
+        arguments.putInt(ARGUMENT_Y, screenLocation[1]);
+        arguments.putInt(ARGUMENT_WIDTH, urlView.getWidth());
+        arguments.putInt(ARGUMENT_HEIGHT, urlView.getHeight());
+
+        final UrlInputFragment fragment = new UrlInputFragment();
+        fragment.setArguments(arguments);
+
+        return fragment;
+    }
 
     /**
      * Create a new UrlInputFragment with a gradient background (and the Focus logo). This configuration
@@ -123,6 +157,18 @@ public class UrlInputFragment extends LocaleAwareFragment implements View.OnClic
 
     private volatile boolean isAnimating;
 
+    private Session session;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        final String sessionUUID = getArguments().getString(ARGUMENT_SESSION_UUID);
+        if (sessionUUID != null) {
+            session = SessionManager.getInstance().getSessionByUUID(sessionUUID);
+        }
+    }
+
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         final View view = inflater.inflate(R.layout.fragment_urlinput, container, false);
@@ -184,8 +230,16 @@ public class UrlInputFragment extends LocaleAwareFragment implements View.OnClic
 
         urlView.setOnCommitListener(this);
 
+
         if (getArguments().containsKey(ARGUMENT_URL)) {
+            // TODO: Remove eventually
             urlView.setText(getArguments().getString(ARGUMENT_URL));
+            clearView.setVisibility(View.VISIBLE);
+        }
+
+        if (session != null) {
+            // TODO: Subscribe?
+            urlView.setText(session.getUrl().getValue());
             clearView.setVisibility(View.VISIBLE);
         }
 
@@ -193,6 +247,10 @@ public class UrlInputFragment extends LocaleAwareFragment implements View.OnClic
     }
 
     private boolean isOverlay() {
+        if (session != null) {
+            return true;
+        }
+
         return getArguments().getBoolean(ARGUMENT_OVERLAY, false);
     }
 
@@ -476,10 +534,14 @@ public class UrlInputFragment extends LocaleAwareFragment implements View.OnClic
                     .remove(this)
                     .commit();
         } else {
+            final Session session = SessionManager.getInstance().createSession(url);
+
+            /*
             fragmentManager
                     .beginTransaction()
-                    .replace(R.id.container, BrowserFragment.create(url), BrowserFragment.FRAGMENT_TAG)
+                    .replace(R.id.container, BrowserFragment.createForSession(session), BrowserFragment.FRAGMENT_TAG)
                     .commit();
+            */
         }
     }
 

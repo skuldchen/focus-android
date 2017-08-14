@@ -35,17 +35,12 @@ import java.util.Map;
 /* package */ class FocusWebViewClient extends TrackingProtectionWebViewClient {
     private final static String ERROR_PROTOCOL = "error:";
 
-    private IWebView.Callback callback;
     private boolean errorReceived;
     private Context context;
 
-    public FocusWebViewClient(Context context) {
+    /* package */ FocusWebViewClient(Context context) {
         super(context);
         this.context = context;
-    }
-
-    public void setCallback(IWebView.Callback callback) {
-        this.callback = callback;
     }
 
     /**

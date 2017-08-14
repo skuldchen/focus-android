@@ -24,6 +24,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewDatabase;
 
 import org.mozilla.focus.BuildConfig;
+import org.mozilla.focus.session.Session;
 import org.mozilla.focus.utils.AppConstants;
 import org.mozilla.focus.utils.FileUtils;
 import org.mozilla.focus.utils.ThreadUtils;
